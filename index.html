@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Veri Zekâlı Profesyonel Haber Tasarım Editörü</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:ital,wght@0,500;0,700;0,800;0,900;1,900&family=Oswald:wght@600;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=Roboto:wght@700;900&display=swap" rel="stylesheet">
+    <script>
+      (function patchCanvasEngine() {
+        if (window._canvasPatched) return;
+        const origCreatePattern = CanvasRenderingContext2D.prototype.createPattern;
+        CanvasRenderingContext2D.prototype.createPattern = function(image, repetition) {
+          if (!image || image.width === 0 || image.height === 0) {
+            const dummy = document.createElement('canvas');
+            dummy.width = 1;
+            dummy.height = 1;
+            return origCreatePattern.call(this, dummy, repetition || 'repeat');
+          }
+          return origCreatePattern.apply(this, arguments);
+        };
+        window._canvasPatched = true;
+      })();
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #060911; color: #f1f5f9; -webkit-overflow-scrolling: touch; }
+        .font-montserrat { font-family: 'Montserrat', sans-serif; }
+        .font-oswald { font-family: 'Oswald', sans-serif; }
+        .font-playfair { font-family: 'Playfair Display', serif; }
+        .font-roboto { font-family: 'Roboto', sans-serif; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #04060b; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        .preview-grid-bg { background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px); background-size: 24px 24px; }
+        
+        textarea, input {
+            white-space: pre-wrap !important;
+            overflow-wrap: anywhere !important;
+        }
+
+        .editor-shell{
+            display:flex;
+            flex-direction:row;
+            width:100%;
+            min-width:0;
+            background:#020617;
+        }
+        .editor-panel{
+            width:520px;
+            min-width:520px;
+            max-width:520px;
+            height:100dvh;
+            overflow-y:auto;
+            overflow-x:hidden;
+        }
+        .editor-preview{
+            height:100dvh;
+            width:auto;
+            flex:1 1 auto;
+            min-width:0;
+        }
+
+        @media (max-width: 900px){
+            .editor-shell{
+                flex-direction:column;
+                height:auto;
+                min-height:100dvh;
+                overflow:auto;
+            }
+            .editor-panel{
+                width:100%;
+                min-width:0;
+                max-width:none;
+                height:auto;
+                max-height:none;
+            }
+            .editor-preview{
+                width:100%;
+                min-height:560px;
+                height:calc(100dvh - 520px);
+            }
+        }
+    </style>
+</head>
+<body class="editor-shell h-[100dvh] overflow-hidden select-none">
+
+    <div id="customModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl flex flex-col gap-4 text-center">
+            <div id="modalIcon" class="w-12 h-12 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mx-auto text-xl font-bold">ℹ️</div>
+            <h3 id="modalTitle" class="text-white font-bold text-base">Bildirim</h3>
+            <p id="modalMessage" class="text-slate-300 text-xs leading-relaxed">Mesaj içeriği buraya gelecek.</p>
+            <button type="button" onclick="closeModal()" class="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow cursor-pointer">Tamam</button>
+        </div>
+    </div>
+
+    <aside class="editor-panel bg-slate-950/90 backdrop-blur-2xl border-r border-slate-800/80 flex flex-col shrink-0 z-30 shadow-2xl">
+        
+        <!-- Üst Marka Başlığı -->
+        <div class="px-6 py-4 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-950">
+            <div class="flex items-center gap-3">
+                <div id="brandLogoIndicator" class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-orange-600 flex items-center justify-center font-black text-white text-xs shadow-lg shadow-red-600/30 transition-all duration-300">NS</div>
+                <div>
+                    <h1 class="text-xs font-black tracking-wider text-white uppercase flex items-center gap-2">Haber Tasarım Editörü <span class="px-1.5 py-0.5 rounded text-[9px] bg-red-500/20 text-red-400 font-mono">v13.5</span></h1>
+                    <p class="text-[10px] text-slate-400">Çoklu Şablon • Kesintisiz Q&A • Split Versus</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button type="button" id="downloadBtn" onclick="exportInstagramPost()" class="bg-slate-800/90 hover:bg-slate-700 text-white px-3 py-2 rounded-xl font-bold text-[11px] border border-slate-700/80 transition-all shadow-md cursor-pointer flex items-center gap-1.5" title="ZIP İndir"><span>💾</span> İndir</button>
+                <button type="button" onclick="tablodanHaberiCek()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl font-bold text-[11px] transition-all shadow-md shadow-blue-600/30 cursor-pointer flex items-center gap-1.5" title="Haberi Çek"><span>📥</span> Çek</button>
+                <button type="button" id="btnOnaylaGonder" onclick="gorseliOnaylaVeSheetsGonder()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl font-bold text-[11px] transition-all shadow-md shadow-red-600/30 cursor-pointer flex items-center gap-1.5" title="Onayla & Gönder"><span>🚀</span> Gönder</button>
+                <button type="button" id="btnTopluGonder" onclick="topluBekleyenHaberleriGonder()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl font-bold text-[11px] transition-all shadow-md shadow-emerald-600/30 cursor-pointer flex items-center gap-1.5" title="Bekleyen tüm haberleri oluştur ve Drive'a gönder"><span>⚡</span> Toplu Gönder</button>
+            </div>
+        </div>
+
+        <!-- Sekme Butonları -->
+        <div class="grid grid-cols-5 p-1.5 border-b border-slate-800/80 bg-slate-900/60 gap-1">
+            <button type="button" onclick="switchTab('content')" id="tabBtn-content" class="tab-btn py-2.5 text-[11px] font-bold rounded-lg bg-red-600 text-white transition-all flex items-center justify-center cursor-pointer shadow-sm">İçerik</button>
+            <button type="button" onclick="switchTab('typography')" id="tabBtn-typography" class="tab-btn py-2.5 text-[11px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer">Tipografi</button>
+            <button type="button" onclick="switchTab('style')" id="tabBtn-style" class="tab-btn py-2.5 text-[11px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer">Tasarım</button>
+            <button type="button" onclick="switchTab('media')" id="tabBtn-media" class="tab-btn py-2.5 text-[11px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer">Görsel</button>
+            <button type="button" onclick="switchTab('brand')" id="tabBtn-brand" class="tab-btn py-2.5 text-[11px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer">Marka</button>
+        </div>
+
+        <!-- Sekme İçerikleri -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
+            
+            <!-- İçerik Sekmesi -->
+            <div id="tab-content" class="space-y-4">
+                <div class="flex items-center justify-between bg-red-500/10 border border-red-500/20 p-3.5 rounded-2xl mb-4">
+                    <div>
+                        <span class="block text-[11px] font-extrabold text-red-300 uppercase">Haber Verilerini Sıfırla</span>
+                        <span class="text-[10px] text-slate-400">Varsayılan örnek verileri yükle</span>
+                    </div>
+                    <button type="button" onclick="sifirlaHaberiVarsayilana()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl font-bold text-[10px] transition-all shadow cursor-pointer">🔄 Sıfırla</button>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl mb-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-extrabold text-red-400 uppercase tracking-wide">Slayt Yönetimi (Karusel)</label>
+                        <button type="button" onclick="addNewSlide()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer">+ Slayt Ekle</button>
+                    </div>
+                    <div id="slideTabsContainer" class="grid grid-cols-2 gap-2"></div>
+                </div>
+
+                <!-- Şablon Seçici (Slayt Özelinde) -->
+                <div class="bg-gradient-to-br from-slate-900 via-slate-900/90 to-indigo-950/40 border border-indigo-500/30 p-4 rounded-2xl space-y-3">
+                    <label class="block text-xs font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5"><span>🎨</span> Aktif Slayt Şablonu</label>
+                    <select id="slideTemplateSelect" onchange="changeActiveSlideTemplate(this.value)" class="w-full bg-slate-950 border border-indigo-500/40 rounded-xl px-3 py-2.5 text-xs text-white font-bold outline-none focus:border-indigo-500 cursor-pointer">
+                        <option value="standard">Standart Haber Şablonu</option>
+                        <option value="breaking">Son Dakika Şablonu</option>
+                        <option value="quote">Alıntı / Demeç Şablonu</option>
+                        <option value="interview">Röportaj / Soru-Cevap Şablonu</option>
+                        <option value="stat">Veri / Önemli İstatistik Şablonu</option>
+                        <option value="versus">Versus / İki Renkli Split Karşılaştırma</option>
+                        <option value="minimal">Minimal Görsel Odaklı Şablon</option>
+                    </select>
+                </div>
+
+                <!-- Şablona Özel Ek Alanlar (Dinamik) -->
+                <div id="templateSpecificFields" class="space-y-4"></div>
+
+                <div class="flex items-center justify-between bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                    <div>
+                        <span class="block text-xs font-bold text-white uppercase">Aktif Slayt Başlık Göster</span>
+                        <span class="text-[10px] text-slate-400">Bu slaytta başlık alanını açıp kapatın</span>
+                    </div>
+                    <input type="checkbox" id="showHeadlineToggle" checked class="w-4 h-4 accent-red-600 rounded cursor-pointer">
+                </div>
+
+                <div id="headlineWrapper">
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-1.5">Aktif Slayt Ana Başlığı</label>
+                    <textarea id="inputHeadline" rows="3" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-sm text-white font-medium outline-none focus:border-red-600 resize-y shadow-inner" placeholder="Başlık girin... (*vurgu* formatı desteklenir)"></textarea>
+                    <div class="mt-2 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 p-2.5 rounded-xl flex items-center justify-between">
+                        <span>💡 İpucu: Vurgulamak istediğiniz kelimelerin arasına yıldız koyun, örn: <b>*Kritik* Karar</b></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-1.5">Aktif Slayt Alt Metin / Açıklama</label>
+                    <textarea id="inputSubtext" rows="5" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-200 outline-none focus:border-red-600 resize-y shadow-inner" placeholder="Haber detay metnini buraya girin..."></textarea>
+                </div>
+            </div>
+
+            <!-- Tipografi ve Konum Sekmesi -->
+            <div id="tab-typography" class="space-y-6 hidden">
+                <div class="bg-gradient-to-br from-slate-900 via-slate-900/90 to-red-950/30 border border-red-500/30 p-5 rounded-2xl space-y-4 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h3 class="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2"><span>📂</span> Tipografi Profili</h3>
+                        <span class="text-[10px] text-slate-400 font-mono">Otomatik Kayıt</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Kayıtlı Profili Seç</label>
+                            <select id="profileSelect" onchange="loadTypographyProfile(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white font-bold outline-none focus:border-red-600 cursor-pointer"></select>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <input type="text" id="newProfileName" placeholder="Profil Adı" class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-600">
+                            <button type="button" onclick="saveTypographyProfile()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all shadow cursor-pointer shrink-0">💾 Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl space-y-5 shadow-lg">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h3 class="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2"><span>🏷️</span> Bant Konumu</h3>
+                        <span class="text-[10px] text-slate-400 font-mono">Hizalama</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <label class="block text-xs font-bold text-slate-200">Bant Hizalaması (Yatay)</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" onclick="setBadgeAlign('left')" id="badgeAlign-left" class="p-2 rounded-xl border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-300 cursor-pointer">Sol</button>
+                            <button type="button" onclick="setBadgeAlign('center')" id="badgeAlign-center" class="p-2 rounded-xl border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-300 cursor-pointer">Orta</button>
+                            <button type="button" onclick="setBadgeAlign('right')" id="badgeAlign-right" class="p-2 rounded-xl border border-red-600 bg-red-600/10 text-[10px] font-bold text-white cursor-pointer">Sağ</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-200">Bant Yatay Boşluk</label>
+                            <span id="valBadgeX" class="text-xs text-red-400 font-mono font-bold bg-red-500/10 px-2.5 py-0.5 rounded">48px</span>
+                        </div>
+                        <input type="range" id="rangeBadgeX" min="0" max="250" value="48" class="w-full accent-red-600 cursor-pointer h-2 bg-slate-950 rounded-lg" oninput="updateTypography()">
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-200">Bant Dikey Konumu</label>
+                            <span id="valBadgeTop" class="text-xs text-red-400 font-mono font-bold bg-red-500/10 px-2.5 py-0.5 rounded">0px</span>
+                        </div>
+                        <input type="range" id="rangeBadgeTop" min="-50" max="200" value="0" class="w-full accent-red-600 cursor-pointer h-2 bg-slate-950 rounded-lg" oninput="updateTypography()">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl space-y-5 shadow-lg">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h3 class="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2"><span>✍️</span> Yazı Boyutları</h3>
+                        <span class="text-[10px] text-slate-400 font-mono">Canlı Ayar</span>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-200">Ana Başlık Boyutu</label>
+                            <span id="valHeadlineSize" class="text-xs text-red-400 font-mono font-bold bg-red-500/10 px-2.5 py-0.5 rounded">60px</span>
+                        </div>
+                        <input type="range" id="rangeHeadlineSize" min="30" max="90" value="60" class="w-full accent-red-600 cursor-pointer h-2 bg-slate-950 rounded-lg" oninput="updateTypography()">
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-200">Alt Metin Boyutu</label>
+                            <span id="valSubtextsize" class="text-xs text-red-400 font-mono font-bold bg-red-500/10 px-2.5 py-0.5 rounded">24px</span>
+                        </div>
+                        <input type="range" id="rangeSubtextSize" min="14" max="45" value="24" class="w-full accent-red-600 cursor-pointer h-2 bg-slate-950 rounded-lg" oninput="updateTypography()">
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl space-y-5 shadow-lg">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h3 class="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2"><span>📍</span> Konum ve Aralık</h3>
+                        <span class="text-[10px] text-slate-400 font-mono">Serbest Aralık</span>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-200">Başlık Dikey Konumu</label>
+                            <span id="valHeadlineTop" class="text-xs text-red-400 font-mono font-bold bg-red-500/10 px-2.5 py-0.5 rounded">0px</span>
+                        </div>
+                        <input type="range" id="rangeHeadlineTop" min="-800" max="800" value="0" class="w-full accent-red-600 cursor-pointer h-2 bg-slate-950 rounded-lg" oninput="updateTypography()">
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-200">Alt Metin Dikey Konumu</label>
+                            <span id="valSubtextTop" class="text-xs text-red-400 font-mono font-bold bg-red-500/10 px-2.5 py-0.5 rounded">0px</span>
+                        </div>
+                        <input type="range" id="rangeSubtextTop" min="-800" max="800" value="0" class="w-full accent-red-600 cursor-pointer h-2 bg-slate-950 rounded-lg" oninput="updateTypography()">
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-200">Başlık ile Alt Metin Aralığı</label>
+                            <span id="valGapSize" class="text-xs text-red-400 font-mono font-bold bg-red-500/10 px-2.5 py-0.5 rounded">32px</span>
+                        </div>
+                        <input type="range" id="rangeGapSize" min="0" max="250" value="32" class="w-full accent-red-600 cursor-pointer h-2 bg-slate-950 rounded-lg" oninput="updateTypography()">
+                    </div>
+                </div>
+
+                <button type="button" onclick="resetTypography()" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow cursor-pointer border border-slate-700/80">Tipografi ve Konum Ayarlarını Sıfırla</button>
+            </div>
+
+            <!-- Tasarım Sekmesi -->
+            <div id="tab-style" class="space-y-6 hidden">
+                <div class="bg-gradient-to-br from-slate-900 via-slate-900/90 to-indigo-950/30 border border-indigo-500/30 p-5 rounded-2xl space-y-4 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h3 class="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2"><span>➕</span> Yeni Kategori & Renk Ekle</h3>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Kategori Adı & Bant Metni</label>
+                            <input type="text" id="newCatName" placeholder="Örn: EĞİTİM / DOSYA" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white uppercase outline-none focus:border-indigo-600 font-bold">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Accent Rengi</label>
+                                <input type="color" id="newCatAccentColor" value="#6366f1" class="w-full h-9 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Bant Rengi</label>
+                                <input type="color" id="newCatBadgeColor" value="#4f46e5" class="w-full h-9 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer">
+                            </div>
+                        </div>
+                        <button type="button" onclick="addNewCategoryTheme()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow cursor-pointer">✨ Kategoriyi Ekle ve Seç</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-3">Haber Kategorisi & Tasarım Rengi</label>
+                    <div id="categoryButtonsContainer" class="grid grid-cols-2 gap-3"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-3">Görsel Formatı (Boyut)</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="selectRatio('square')" id="ratioBtn-square" class="p-2.5 rounded-xl border-2 border-slate-800 bg-slate-900 text-[10px] font-bold text-slate-300 transition-all cursor-pointer">1:1 Kare</button>
+                        <button type="button" onclick="selectRatio('portrait')" id="ratioBtn-portrait" class="p-2.5 rounded-xl border-2 border-red-600 bg-red-600/10 text-[10px] font-bold text-white transition-all cursor-pointer">4:5 Portre</button>
+                        <button type="button" onclick="selectRatio('reels')" id="ratioBtn-reels" class="p-2.5 rounded-xl border-2 border-slate-800 bg-slate-900 text-[10px] font-bold text-slate-300 transition-all cursor-pointer">9:16 Hikaye</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Görsel Sekmesi -->
+            <div id="tab-media" class="space-y-5 hidden">
+                <div class="p-4 rounded-2xl border border-slate-800 bg-slate-900/80 space-y-3">
+                    <label class="block text-xs font-bold text-white uppercase">Aktif Slayt Arka Planı (Görsel veya Video)</label>
+                    <input type="file" id="bgFileInput" accept="image/*,video/*" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-700 cursor-pointer">
+                    <button type="button" onclick="removeBackgroundMedia()" class="w-full py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer">🗑️ Arka Plan Görselini Kaldır</button>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-2">Görsel Renk Filtresi</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="setPhotoFilter('normal')" id="filterBtn-normal" class="p-2.5 rounded-xl border border-red-600 bg-red-600/10 text-[11px] font-bold text-white cursor-pointer">Normal</button>
+                        <button type="button" onclick="setPhotoFilter('filter-grayscale')" id="filterBtn-grayscale" class="p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-[11px] font-bold text-slate-300 cursor-pointer">Siyah & Beyaz</button>
+                        <button type="button" onclick="setPhotoFilter('filter-cinematic')" id="filterBtn-cinematic" class="p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-[11px] font-bold text-slate-300 cursor-pointer">Sinematik Sıcak</button>
+                        <button type="button" onclick="setPhotoFilter('filter-cyberpunk')" id="filterBtn-cyberpunk" class="p-2.5 rounded-xl border border-slate-800 bg-slate-900 text-[11px] font-bold text-slate-300 cursor-pointer">Cyberpunk Neon</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Marka Sekmesi -->
+            <div id="tab-brand" class="space-y-5 hidden">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Kısa Logo (Harf)</label>
+                        <input type="text" id="inputLogoText" value="HB" maxlength="4" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-center text-white uppercase font-black outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sayfa / Alt İsim</label>
+                        <input type="text" id="inputPageName" value="HABER MERKEZİ" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white uppercase font-bold outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Özel Görsel Logo Yükle</label>
+                    <input type="file" id="logoFileInput" accept="image/*" class="block w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-semibold file:bg-slate-700 file:text-white hover:file:bg-slate-600 cursor-pointer">
+                    <button type="button" onclick="clearLogo()" class="text-[10px] text-red-400 hover:text-red-300 underline mt-2 hidden cursor-pointer" id="clearLogoBtn">Görsel Logoyu Temizle</button>
+                </div>
+            </div>
+        </div>
+    
+    </aside>
+
+    <main class="editor-preview bg-slate-950 flex-1 min-w-0 min-h-0 flex flex-col items-center justify-center p-4 xl:p-8 overflow-auto relative preview-grid-bg">
+        <div id="canvasPreviewFrame" style="width:340px;height:425px;"
+             class="relative shadow-2xl rounded-xl overflow-hidden mt-2 bg-black">
+            <canvas id="instagramPostCanvas" width="1080" height="1350"
+                    style="display:block;width:340px;height:425px;"
+                    class="rounded-xl"></canvas>
+        </div>
+        <div class="mt-3 flex items-center gap-2 text-[9px] text-slate-500">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span id="canvasEngineStatus">Gerçek Canvas • Çoklu Şablon Motoru • 1080px</span>
+        </div>
+    </main>
+
+    <script>
+    function showModal(title, message) {
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('modalMessage').innerText = message;
+        document.getElementById('customModal').classList.remove('hidden');
+    }
+    function closeModal() {
+        document.getElementById('customModal').classList.add('hidden');
+    }
+
+    function switchTab(tabName) {
+        const tabs = ['content', 'typography', 'style', 'media', 'brand'];
+        tabs.forEach(t => {
+            const tabEl = document.getElementById(`tab-${t}`);
+            const btnEl = document.getElementById(`tabBtn-${t}`);
+            if (tabEl) {
+                if (t === tabName) tabEl.classList.remove('hidden');
+                else tabEl.classList.add('hidden');
+            }
+            if (btnEl) {
+                if (t === tabName) btnEl.className = "tab-btn py-2.5 text-[11px] font-bold rounded-lg bg-red-600 text-white transition-all flex items-center justify-center cursor-pointer shadow-sm";
+                else btnEl.className = "tab-btn py-2.5 text-[11px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center cursor-pointer";
+            }
+        });
+    }
+
+    // Çoklu Slayt ve Şablon Veri Yapısı
+    let slidesData = [
+        { 
+            active: true, 
+            template: 'standard', // standard, breaking, quote, interview, stat, versus, minimal
+            headline: "Kritik Karar Sonrası Piyasalar Nasıl Tepki Verecek?", 
+            subtext: "Uzmanlar yeni ekonomik modelin detaylarını değerlendirdi. Detaylar için kaydırın 👉", 
+            showHeadline: true, 
+            mediaUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+            extraData: { speakerName: '', speakerTitle: '', statNumber: '', statLabel: '', statColor: '#3b82f6', versusA: 'Eski Sistem', versusB: 'Yeni Sistem', versusDescA: 'Mevcut ekonomik model ve detayları.', versusDescB: 'Yenilikçi yaklaşım ve beklentiler.', versusColorA: '#1e3a8a', versusColorB: '#b91c1c' }
+        },
+        { 
+            active: true, 
+            template: 'quote', 
+            headline: "“Asla Geri Adım Atmayacağız ve Hedeflerimize Ulaşacağız”", 
+            subtext: "Yatırımların kesintisiz süreceğini belirten yetkili, yeni projelerin müjdesini verdi.", 
+            showHeadline: true, 
+            mediaUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80',
+            extraData: { speakerName: 'Ahmet Yılmaz', speakerTitle: 'Yönetim Kurulu Başkanı', statNumber: '', statLabel: '', statColor: '#3b82f6', versusA: 'Eski Sistem', versusB: 'Yeni Sistem', versusDescA: '', versusDescB: '', versusColorA: '#1e3a8a', versusColorB: '#b91c1c' }
+        },
+        { 
+            active: true, 
+            template: 'stat', 
+            headline: "Son Çeyrekte Rekor Büyüme Oranı Yakalandı", 
+            subtext: "Ekonomik veriler beklentilerin çok üzerinde bir ivme gösterdiğini doğruluyor.", 
+            showHeadline: true, 
+            mediaUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80',
+            extraData: { speakerName: '', speakerTitle: '', statNumber: '%8.4', statLabel: 'Yıllık Büyüme', statColor: '#10b981', versusA: 'Eski Sistem', versusB: 'Yeni Sistem', versusDescA: '', versusDescB: '', versusColorA: '#1e3a8a', versusColorB: '#b91c1c' }
+        }
+    ];
+
+    let themeRenderMap = {
+        general: { label: 'Genel', badge: 'GÜNDEM', accent: '#64748b', badgeBg: '#475569', dotBg: '#94a3b8' },
+        breaking: { label: 'Son Dakika', badge: 'SON DAKİKA', accent: '#ef4444', badgeBg: '#dc2626', dotBg: '#f87171' },
+        sports: { label: 'Spor', badge: 'MAÇ SONUCU', accent: '#10b981', badgeBg: '#059669', dotBg: '#34d399' },
+        finance: { label: 'Finans', badge: 'PİYASA', accent: '#3b82f6', badgeBg: '#2563eb', dotBg: '#60a5fa' },
+        tech: { label: 'Teknoloji', badge: 'YENİ TEKNOLOJİ', accent: '#6366f1', badgeBg: '#4f46e5', dotBg: '#818cf8' },
+        politics: { label: 'Politika', badge: 'POLİTİKA', accent: '#f59e0b', badgeBg: '#d97706', dotBg: '#fbbf24' },
+        culture: { label: 'Yaşam & Sanat', badge: 'YAŞAM & SANAT', accent: '#f43f5e', badgeBg: '#e11d48', dotBg: '#fb7185' },
+        world: { label: 'Dünya', badge: 'DÜNYA', accent: '#06b6d4', badgeBg: '#0891b2', dotBg: '#22d3ee' },
+        health: { label: 'Sağlık', badge: 'SAĞLIK', accent: '#14b8a6', badgeBg: '#0d9488', dotBg: '#2dd4bf' }
+    };
+
+    function renderCategoryButtons() {
+        const container = document.getElementById('categoryButtonsContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        for (const [key, th] of Object.entries(themeRenderMap)) {
+            const isSelected = state.categoryTheme === key;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.onclick = () => setCategoryTheme(key);
+            btn.className = `p-3.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-2.5 ${isSelected ? 'border-indigo-500 bg-indigo-500/10 text-white shadow-lg' : 'border-slate-800 bg-slate-900 text-slate-300 hover:border-slate-700'}`;
+            btn.innerHTML = `<span class="w-3.5 h-3.5 rounded-full block shrink-0" style="background-color: ${th.accent};"></span> ${th.label}`;
+            container.appendChild(btn);
+        }
+    }
+
+    function addNewCategoryTheme() {
+        const nameInput = document.getElementById('newCatName');
+        const accentInput = document.getElementById('newCatAccentColor');
+        const badgeInput = document.getElementById('newCatBadgeColor');
+        const rawName = nameInput.value.trim();
+        if (!rawName) { showModal("Hata", "Lütfen bir kategori adı girin."); return; }
+
+        const key = 'custom_' + Date.now();
+        themeRenderMap[key] = { label: rawName, badge: rawName.toUpperCase(), accent: accentInput.value, badgeBg: badgeInput.value, dotBg: accentInput.value };
+        nameInput.value = '';
+        renderCategoryButtons();
+        setCategoryTheme(key);
+        showModal("Başarılı", `"${rawName}" kategorisi başarıyla eklendi ve seçildi!`);
+    }
+
+    let typographyProfiles = {
+        "Standart Profil": { headlineSize: 60, subtextSize: 24, gapSize: 32, headlineTop: 0, subtextTop: 0, badgeAlign: 'right', badgeX: 48, badgeTop: 0 },
+        "Büyük Başlık Profili": { headlineSize: 75, subtextSize: 22, gapSize: 40, headlineTop: -30, subtextTop: 20, badgeAlign: 'right', badgeX: 48, badgeTop: 0 },
+        "Kompakt Profil": { headlineSize: 50, subtextSize: 20, gapSize: 20, headlineTop: 10, subtextTop: -10, badgeAlign: 'center', badgeX: 0, badgeTop: 0 }
+    };
+
+    function loadSavedTypographyProfiles() {
+        try {
+            const saved = localStorage.getItem('verizekali_typography_profiles');
+            if (saved) Object.assign(typographyProfiles, JSON.parse(saved));
+        } catch(e) {}
+    }
+
+    function initProfilesDropdown() {
+        const sel = document.getElementById('profileSelect');
+        if (!sel) return;
+        sel.innerHTML = '';
+        for (let name in typographyProfiles) {
+            const opt = document.createElement('option');
+            opt.value = name; opt.innerText = name; sel.appendChild(opt);
+        }
+    }
+
+    function saveTypographyProfile() {
+        const nameInput = document.getElementById('newProfileName');
+        let name = nameInput.value.trim() || ("Profil " + (Object.keys(typographyProfiles).length + 1));
+        typographyProfiles[name] = { 
+            headlineSize: state.headlineSize, 
+            subtextSize: state.subtextSize, 
+            gapSize: state.gapSize,
+            headlineTop: state.headlineTop,
+            subtextTop: state.subtextTop,
+            badgeAlign: state.badgeAlign, 
+            badgeX: state.badgeX,
+            badgeTop: state.badgeTop
+        };
+        try { localStorage.setItem('verizekali_typography_profiles', JSON.stringify(typographyProfiles)); } catch(e) {}
+        initProfilesDropdown();
+        document.getElementById('profileSelect').value = name;
+        nameInput.value = '';
+        showModal("Başarılı", `"${name}" profili kaydedildi.`);
+    }
+
+    function loadTypographyProfile(name) {
+        const p = typographyProfiles[name];
+        if (!p) return;
+        state.headlineSize = p.headlineSize; 
+        state.subtextSize = p.subtextSize; 
+        state.gapSize = p.gapSize !== undefined ? p.gapSize : 32;
+        state.headlineTop = p.headlineTop !== undefined ? p.headlineTop : 0;
+        state.subtextTop = p.subtextTop !== undefined ? p.subtextTop : 0;
+        state.badgeAlign = p.badgeAlign || 'right'; 
+        state.badgeX = p.badgeX !== undefined ? p.badgeX : 48;
+        state.badgeTop = p.badgeTop !== undefined ? p.badgeTop : 0;
+
+        document.getElementById('rangeHeadlineSize').value = p.headlineSize;
+        document.getElementById('rangeSubtextSize').value = p.subtextSize;
+        document.getElementById('rangeGapSize').value = state.gapSize;
+        document.getElementById('rangeHeadlineTop').value = state.headlineTop;
+        document.getElementById('rangeSubtextTop').value = state.subtextTop;
+        document.getElementById('rangeBadgeX').value = state.badgeX;
+        document.getElementById('rangeBadgeTop').value = state.badgeTop;
+        setBadgeAlign(state.badgeAlign, false);
+        updateTypography();
+    }
+
+    const state = {
+        slideIndex: 0,
+        ratio: 'portrait',
+        category: 'TÜRKİYE',
+        badge: 'SON DAKİKA',
+        logoText: 'HB',
+        pageName: 'HABER MERKEZİ',
+        categoryTheme: 'tech',
+        photoFilter: 'normal',
+        headlineSize: 60,
+        subtextSize: 24,
+        gapSize: 32,
+        headlineTop: 0,
+        subtextTop: 0,
+        badgeAlign: 'right',
+        badgeX: 48,
+        badgeTop: 0
+    };
+
+    function setBadgeAlign(align, doUpdate = true) {
+        state.badgeAlign = align;
+        ['left', 'center', 'right'].forEach(a => {
+            const btn = document.getElementById(`badgeAlign-${a}`);
+            if (btn) btn.className = (a === align) ? "p-2 rounded-xl border border-red-600 bg-red-600/10 text-[10px] font-bold text-white cursor-pointer" : "p-2 rounded-xl border border-slate-800 bg-slate-950 text-[10px] font-bold text-slate-300 cursor-pointer";
+        });
+        if (doUpdate) updateTypography();
+    }
+
+    function updateTypography() {
+        state.headlineSize = parseInt(document.getElementById('rangeHeadlineSize').value) || 60;
+        state.subtextSize = parseInt(document.getElementById('rangeSubtextSize').value) || 24;
+        state.gapSize = parseInt(document.getElementById('rangeGapSize').value) || 32;
+        state.headlineTop = parseInt(document.getElementById('rangeHeadlineTop').value) || 0;
+        state.subtextTop = parseInt(document.getElementById('rangeSubtextTop').value) || 0;
+        state.badgeX = parseInt(document.getElementById('rangeBadgeX').value) || 48;
+        state.badgeTop = parseInt(document.getElementById('rangeBadgeTop').value) || 0;
+
+        document.getElementById('valHeadlineSize').innerText = state.headlineSize + 'px';
+        document.getElementById('valSubtextsize').innerText = state.subtextSize + 'px';
+        document.getElementById('valGapSize').innerText = state.gapSize + 'px';
+        document.getElementById('valHeadlineTop').innerText = state.headlineTop + 'px';
+        document.getElementById('valSubtextTop').innerText = state.subtextTop + 'px';
+        document.getElementById('valBadgeX').innerText = state.badgeX + 'px';
+        document.getElementById('valBadgeTop').innerText = state.badgeTop + 'px';
+        renderCanvas();
+    }
+
+    function resetTypography() {
+        document.getElementById('rangeHeadlineSize').value = 60;
+        document.getElementById('rangeSubtextSize').value = 24;
+        document.getElementById('rangeGapSize').value = 32;
+        document.getElementById('rangeHeadlineTop').value = 0;
+        document.getElementById('rangeSubtextTop').value = 0;
+        document.getElementById('rangeBadgeX').value = 48;
+        document.getElementById('rangeBadgeTop').value = 0;
+        setBadgeAlign('right', false);
+        updateTypography();
+    }
+
+    function renderSlideTabs() {
+        const container = document.getElementById('slideTabsContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        slidesData.forEach((s, idx) => {
+            const isCurrent = idx === state.slideIndex;
+            const div = document.createElement('div');
+            div.className = `flex items-center justify-between p-2.5 rounded-xl border ${isCurrent ? 'border-red-500 bg-red-500/10' : 'border-slate-800 bg-slate-950'}`;
+            div.innerHTML = `
+                <button type="button" onclick="setSlide(${idx})" class="flex-1 text-left text-xs font-bold ${isCurrent ? 'text-red-400' : 'text-slate-300'} truncate">Slayt ${idx+1} (${s.template})</button>
+                <div class="flex items-center gap-1.5">
+                    <input type="checkbox" ${s.active ? 'checked' : ''} onchange="toggleSlideActive(${idx}, this)" class="w-3.5 h-3.5 accent-red-600 rounded cursor-pointer" title="Aktif/Pasif">
+                    ${slidesData.length > 1 ? `<button type="button" onclick="removeSlide(${idx})" class="text-rose-400 hover:text-rose-300 text-xs px-1" title="Sil">✕</button>` : ''}
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function addNewSlide() {
+        slidesData.push({
+            active: true,
+            template: 'standard',
+            headline: "Yeni Slayt Başlığı",
+            subtext: "Açıklama metnini buraya ekleyin...",
+            showHeadline: true,
+            mediaUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+            extraData: { speakerName: '', speakerTitle: '', statNumber: '', statLabel: '', statColor: '#3b82f6', versusA: 'Seçenek A', versusB: 'Seçenek B', versusDescA: 'Birinci görüş veya sistemin detayları...', versusDescB: 'İkinci görüş veya alternatif yaklaşım...', versusColorA: '#1e3a8a', versusColorB: '#b91c1c' }
+        });
+        setSlide(slidesData.length - 1);
+    }
+
+    function removeSlide(idx) {
+        if (slidesData.length <= 1) return;
+        slidesData.splice(idx, 1);
+        if (state.slideIndex >= slidesData.length) state.slideIndex = slidesData.length - 1;
+        setSlide(state.slideIndex);
+    }
+
+    function toggleSlideActive(idx, cb) {
+        slidesData[idx].active = cb.checked;
+        renderSlideTabs();
+    }
+
+    function changeActiveSlideTemplate(tmpl) {
+        slidesData[state.slideIndex].template = tmpl;
+        renderTemplateSpecificFields();
+        renderSlideTabs();
+        renderCanvas();
+    }
+
+    function renderTemplateSpecificFields() {
+        const container = document.getElementById('templateSpecificFields');
+        if (!container) return;
+        const s = slidesData[state.slideIndex];
+        const ed = s.extraData || (s.extraData = { speakerName: '', speakerTitle: '', statNumber: '', statLabel: '', statColor: '#3b82f6', versusA: 'Seçenek A', versusB: 'Seçenek B', versusDescA: 'Birinci görüş...', versusDescB: 'İkinci görüş...', versusColorA: '#1e3a8a', versusColorB: '#b91c1c' });
+        
+        let html = '';
+        if (s.template === 'quote' || s.template === 'interview') {
+            html = `
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Konuşmacı / Kişi</label>
+                        <input type="text" id="extraSpeakerName" value="${ed.speakerName || ''}" oninput="updateExtraData('speakerName', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-600" placeholder="Örn: Elon Musk">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Unvan / Kurum</label>
+                        <input type="text" id="extraSpeakerTitle" value="${ed.speakerTitle || ''}" oninput="updateExtraData('speakerTitle', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-600" placeholder="Örn: CEO, Tesla">
+                    </div>
+                </div>
+            `;
+        } else if (s.template === 'stat') {
+            html = `
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Öne Çıkan Rakam / İstatistik</label>
+                            <input type="text" id="extraStatNumber" value="${ed.statNumber || ''}" oninput="updateExtraData('statNumber', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none focus:border-red-600 text-lg font-black text-emerald-400" placeholder="Örn: %85 veya 10M">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Etiket / Alt Başlık</label>
+                            <input type="text" id="extraStatLabel" value="${ed.statLabel || ''}" oninput="updateExtraData('statLabel', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-600" placeholder="Örn: Yıllık Artış">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Rakam Vurgu Rengi</label>
+                        <div class="flex items-center gap-2">
+                            <input type="color" id="extraStatColor" value="${ed.statColor || '#10b981'}" oninput="updateExtraData('statColor', this.value)" class="w-12 h-9 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer">
+                            <span class="text-[10px] text-slate-400">İstatistik sayı rengini özelleştirin</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (s.template === 'versus') {
+            html = `
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Sol Taraf Başlık</label>
+                            <input type="text" id="extraVersusA" value="${ed.versusA || ''}" oninput="updateExtraData('versusA', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500 font-bold" placeholder="Eski Sistem">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Sağ Taraf Başlık</label>
+                            <input type="text" id="extraVersusB" value="${ed.versusB || ''}" oninput="updateExtraData('versusB', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-red-500 font-bold" placeholder="Yeni Sistem">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Sol Taraf Renk</label>
+                            <input type="color" value="${ed.versusColorA || '#1e3a8a'}" oninput="updateExtraData('versusColorA', this.value)" class="w-full h-9 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Sağ Taraf Renk</label>
+                            <input type="color" value="${ed.versusColorB || '#b91c1c'}" oninput="updateExtraData('versusColorB', this.value)" class="w-full h-9 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Sol Taraf Açıklama</label>
+                            <textarea rows="2" oninput="updateExtraData('versusDescA', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none resize-none" placeholder="Sol taraf detay...">${ed.versusDescA || ''}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-300 uppercase mb-1">Sağ Taraf Açıklama</label>
+                            <textarea rows="2" oninput="updateExtraData('versusDescB', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none resize-none" placeholder="Sağ taraf detay...">${ed.versusDescB || ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    }
+
+    function updateExtraData(key, val) {
+        if (!slidesData[state.slideIndex].extraData) slidesData[state.slideIndex].extraData = {};
+        slidesData[state.slideIndex].extraData[key] = val;
+        renderCanvas();
+    }
+
+    function setSlide(index) {
+        if (index < 0 || index >= slidesData.length) return;
+        state.slideIndex = index;
+        const s = slidesData[index];
+
+        document.getElementById('slideTemplateSelect').value = s.template;
+        document.getElementById('inputHeadline').value = s.headline;
+        document.getElementById('inputSubtext').value = s.subtext;
+        document.getElementById('showHeadlineToggle').checked = s.showHeadline;
+        document.getElementById('headlineWrapper').style.display = s.showHeadline ? 'block' : 'none';
+
+        renderTemplateSpecificFields();
+        renderSlideTabs();
+        renderCanvas();
+    }
+
+    function sifirlaHaberiVarsayilana() {
+        slidesData = [
+            { 
+                active: true, template: 'standard', 
+                headline: "Kritik Karar Sonrası Piyasalar Nasıl Tepki Verecek?", 
+                subtext: "Uzmanlar yeni ekonomik modelin detaylarını değerlendirdi.", 
+                showHeadline: true, 
+                mediaUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+                extraData: { speakerName: '', speakerTitle: '', statNumber: '', statLabel: '', statColor: '#3b82f6', versusA: 'Eski Sistem', versusB: 'Yeni Sistem', versusDescA: '', versusDescB: '', versusColorA: '#1e3a8a', versusColorB: '#b91c1c' }
+            }
+        ];
+        state.slideIndex = 0;
+        setSlide(0);
+        showModal("Sıfırlandı", "Tüm slaytlar varsayılan ayarlara döndürüldü.");
+    }
+
+    function setCategoryTheme(themeKey) {
+        state.categoryTheme = themeKey;
+        const th = themeRenderMap[themeKey] || themeRenderMap.breaking;
+        state.badge = th.badge;
+        renderCategoryButtons();
+        renderCanvas();
+    }
+
+    function setPhotoFilter(filterName) {
+        state.photoFilter = filterName;
+        renderCanvas();
+    }
+
+    function selectRatio(ratio) {
+        state.ratio = ratio;
+        const frame = document.getElementById('canvasPreviewFrame');
+        const canvas = document.getElementById('instagramPostCanvas');
+        if (!frame || !canvas) return;
+        const sizes = {
+            square:{w:1080,h:1080,cssW:340,cssH:340},
+            portrait:{w:1080,h:1350,cssW:340,cssH:425},
+            reels:{w:1080,h:1920,cssW:304,cssH:540}
+        };
+        const s = sizes[ratio] || sizes.portrait;
+        canvas.width = s.w; canvas.height = s.h;
+        canvas.style.width = s.cssW + 'px'; canvas.style.height = s.cssH + 'px';
+        frame.style.width = s.cssW + 'px'; frame.style.height = s.cssH + 'px';
+        renderCanvas();
+    }
+
+    function removeBackgroundMedia() {
+        slidesData[state.slideIndex].mediaUrl = '';
+        renderCanvas();
+        showModal("Arka Plan", "Aktif slaytın arka plan görseli kaldırıldı.");
+    }
+
+    let canvasImageCache = new Map();
+    let canvasVideoCache = new Map();
+    let customLogoImage = null;
+    let renderSerial = 0;
+
+    function getCanvasSize() {
+        return state.ratio === 'square' ? {w:1080,h:1080} : state.ratio === 'reels' ? {w:1080,h:1920} : {w:1080,h:1350};
+    }
+    function loadCanvasImage(url) {
+        if (!url) return Promise.resolve(null);
+        if (canvasImageCache.has(url)) return canvasImageCache.get(url);
+        const p = new Promise(resolve => {
+            const img = new Image(); img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img); img.onerror = () => resolve(null); img.src = url;
+        });
+        canvasImageCache.set(url, p); return p;
+    }
+    function roundedRect(ctx,x,y,w,h,r) {
+        r = Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+        ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);
+        ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+        ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+    }
+
+    function parseHighlightedText(text) {
+        const parts = [];
+        const regex = /\*(.*?)\*/g;
+        let lastIndex = 0, match;
+        while ((match = regex.exec(text)) !== null) {
+            if (match.index > lastIndex) parts.push({ text: text.substring(lastIndex, match.index), highlighted: false });
+            parts.push({ text: match[1], highlighted: true });
+            lastIndex = regex.lastIndex;
+        }
+        if (lastIndex < text.length) parts.push({ text: text.substring(lastIndex), highlighted: false });
+        return parts;
+    }
+
+    function wrapHighlightedText(ctx, text, maxWidth, font, fontSize) {
+        ctx.font = font;
+        const paragraphs = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+        const lines = [];
+        paragraphs.forEach(par => {
+            if (!par.trim()) { lines.push([]); return; }
+            const rawParts = parseHighlightedText(par);
+            const tokens = [];
+            rawParts.forEach(p => {
+                p.text.split(/(\s+)/).forEach(w => { if (w) tokens.push({ text: w, highlighted: p.highlighted }); });
+            });
+            let currentLine = [], currentWidth = 0;
+            tokens.forEach(token => {
+                const wWidth = ctx.measureText(token.text).width;
+                if (currentLine.length === 0 || currentWidth + wWidth <= maxWidth) {
+                    currentLine.push(token); currentWidth += wWidth;
+                } else {
+                    lines.push(currentLine); currentLine = [token]; currentWidth = wWidth;
+                }
+            });
+            if (currentLine.length > 0) lines.push(currentLine);
+        });
+        return lines;
+    }
+
+    function drawWrappedHighlightedLines(ctx, lines, left, startY, lineHeight, normalColor, highlightColor, shadowBlur = 10) {
+        let y = startY;
+        ctx.save(); ctx.textBaseline = 'top'; ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = shadowBlur;
+        lines.forEach(lineTokens => {
+            let x = left;
+            if (!lineTokens || lineTokens.length === 0) { y += lineHeight; return; }
+            lineTokens.forEach(token => {
+                ctx.fillStyle = token.highlighted ? highlightColor : normalColor;
+                ctx.fillText(token.text, x, y);
+                x += ctx.measureText(token.text).width;
+            });
+            y += lineHeight;
+        });
+        ctx.restore();
+    }
+
+    function letterSpaced(ctx, text, x, y, spacing) {
+        const chars = Array.from(String(text || '')); 
+        const widths = chars.map(c => ctx.measureText(c).width);
+        const total = widths.reduce((a,b)=>a+b,0) + Math.max(0, chars.length-1)*spacing; 
+        let cx = x - total/2;
+        chars.forEach((c, i) => { ctx.fillText(c, cx, y); cx += widths[i] + spacing; });
+    }
+
+    function drawCoverImage(ctx, img, w, h) {
+        const iw = img.naturalWidth || img.videoWidth || img.width || 1;
+        const ih = img.naturalHeight || img.videoHeight || img.height || 1;
+        const scale = Math.max(w/iw, h/ih);
+        ctx.drawImage(img, (w - iw*scale)/2, (h - ih*scale)/2, iw*scale, ih*scale);
+    }
+
+    // ANA CANVAS RENDER MOTORU (GELİŞTİRİLMİŞ ŞABLONLAR)
+    async function drawInstagramDesign(renderToken = renderSerial) {
+        const canvas = document.getElementById('instagramPostCanvas'); if (!canvas) return null;
+        const {w, h} = getCanvasSize(); canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,w,h);
+        
+        const currentSlide = slidesData[state.slideIndex] || slidesData[0];
+        const template = currentSlide.template || 'standard';
+        const theme = themeRenderMap[state.categoryTheme] || themeRenderMap.breaking;
+        const accent = theme.accent;
+        const ed = currentSlide.extraData || {};
+
+        ctx.fillStyle = '#05070e'; ctx.fillRect(0,0,w,h);
+
+        // VERSUS ŞABLONU İÇİN İKİ RENKLİ SPLIT EKRAN ARKA PLANI
+        if (template === 'versus') {
+            const colorA = ed.versusColorA || '#1e3a8a';
+            const colorB = ed.versusColorB || '#b91c1c';
+            
+            const gLeft = ctx.createLinearGradient(0, 0, w/2, h);
+            gLeft.addColorStop(0, colorA);
+            gLeft.addColorStop(1, '#05070e');
+            ctx.fillStyle = gLeft;
+            ctx.fillRect(0, 0, w/2, h);
+
+            const gRight = ctx.createLinearGradient(w/2, 0, w, h);
+            gRight.addColorStop(0, colorB);
+            gRight.addColorStop(1, '#05070e');
+            ctx.fillStyle = gRight;
+            ctx.fillRect(w/2, 0, w/2, h);
+        } else {
+            let media = null;
+            if (currentSlide.mediaUrl) {
+                media = await loadCanvasImage(currentSlide.mediaUrl);
+            }
+            if (renderToken !== renderSerial) return null;
+
+            if (media) {
+                ctx.save();
+                const f = [];
+                if (state.photoFilter === 'filter-grayscale') f.push('grayscale(1)', 'contrast(1.2)');
+                if (state.photoFilter === 'filter-cinematic') f.push('sepia(.3)', 'contrast(1.15)', 'saturate(1.2)');
+                if (state.photoFilter === 'filter-cyberpunk') f.push('hue-rotate(180deg)', 'saturate(1.8)', 'contrast(1.3)');
+                ctx.filter = f.join(' ') || 'none';
+                drawCoverImage(ctx, media, w, h);
+                ctx.restore();
+            }
+
+            const g = ctx.createLinearGradient(0,0,0,h);
+            if (template === 'quote' || template === 'minimal') {
+                g.addColorStop(0, 'rgba(5,7,14,.6)'); g.addColorStop(.5, 'rgba(5,7,14,.8)'); g.addColorStop(1, 'rgba(5,7,14,.98)');
+            } else if (template === 'breaking') {
+                g.addColorStop(0, 'rgba(180,20,20,.4)'); g.addColorStop(.5, 'rgba(5,7,14,.82)'); g.addColorStop(1, 'rgba(5,7,14,.98)');
+            } else {
+                g.addColorStop(0, 'rgba(8,12,22,.4)'); g.addColorStop(.52, 'rgba(5,7,14,.68)'); g.addColorStop(1, 'rgba(5,7,14,.94)');
+            }
+            ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+        }
+
+        // Ortak Marka & Demiryolu Ögeleri
+        const railX = 40, railW = 96, top = 48, logo = 96, catH = 224, lineX = railX + railW/2, lineStart = top + logo + 20, lineEnd = h - 48 - catH - 20;
+        
+        ctx.save();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(lineX, top + 48, 48, 0, Math.PI * 2); ctx.fill();
+        ctx.lineWidth = 4; ctx.strokeStyle = (template === 'breaking') ? '#ef4444' : accent; ctx.stroke();
+
+        if (customLogoImage) {
+            const iw = customLogoImage.naturalWidth || customLogoImage.width;
+            const ih = customLogoImage.naturalHeight || customLogoImage.height;
+            const scale = Math.max(96 / iw, 96 / ih);
+            ctx.save(); ctx.beginPath(); ctx.arc(lineX, top + 48, 48, 0, Math.PI * 2); ctx.clip();
+            ctx.drawImage(customLogoImage, lineX - (iw*scale)/2, top + 48 - (ih*scale)/2, iw*scale, ih*scale);
+            ctx.restore();
+        } else {
+            ctx.fillStyle = '#0f172a'; ctx.font = '900 34px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(state.logoText || 'HB', lineX, top + 48);
+        }
+
+        if (lineEnd > lineStart) {
+            ctx.strokeStyle = (template === 'breaking') ? '#ef4444' : accent; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(lineX, lineStart); ctx.lineTo(lineX, lineEnd); ctx.stroke();
+            ctx.fillStyle = (template === 'breaking') ? '#ef4444' : accent;
+            ctx.beginPath(); ctx.arc(lineX, (lineStart + lineEnd)/2, 6, 0, Math.PI * 2); ctx.fill();
+        }
+
+        ctx.translate(lineX, h - 48 - catH/2); ctx.rotate(-Math.PI/2);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+        ctx.font = '900 30px Montserrat'; letterSpaced(ctx, (state.category || 'TÜRKİYE').toUpperCase(), 0, 0, 6);
+        ctx.restore();
+
+        // Kategori / Son Dakika Bandı
+        const badgeText = (template === 'breaking') ? 'SON DAKİKA' : (state.badge || theme.badge || '').toUpperCase();
+        ctx.save(); ctx.font = '700 30px Oswald';
+        const bw = Math.min(w - 96, ctx.measureText(badgeText).width + 80), bh = 62;
+        let bx = state.badgeAlign === 'left' ? state.badgeX : state.badgeAlign === 'center' ? (w - bw)/2 : w - state.badgeX - bw;
+        roundedRect(ctx, bx, 48 + state.badgeTop, bw, bh, 18);
+        ctx.fillStyle = (template === 'breaking') ? '#dc2626' : theme.badgeBg; ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, bx + bw/2, 48 + state.badgeTop + 31);
+        ctx.restore();
+
+        // ŞABLONA ÖZEL ÇİZİM MANTIĞI
+        const left = 160, right = 48, maxW = w - left - right;
+
+        if (template === 'quote') {
+            // ALINTI ŞABLONU (Tırnak işareti aşağı indirildi, ferah yerleşim)
+            let y = 350 + state.headlineTop;
+            ctx.save();
+            ctx.fillStyle = accent; ctx.font = '900 160px Playfair Display';
+            ctx.fillText('“', left - 25, y - 60);
+            ctx.restore();
+
+            y += 20;
+            if (currentSlide.showHeadline && currentSlide.headline) {
+                const hFont = `italic 700 ${state.headlineSize}px Playfair Display`;
+                const hLines = wrapHighlightedText(ctx, currentSlide.headline, maxW, hFont, state.headlineSize);
+                drawWrappedHighlightedLines(ctx, hLines, left, y, Math.round(state.headlineSize * 1.25), '#fff', accent, 12);
+                y += hLines.length * Math.round(state.headlineSize * 1.25) + state.gapSize + state.subtextTop;
+            } else {
+                y += state.subtextTop;
+            }
+
+            if (ed.speakerName) {
+                ctx.save();
+                ctx.fillStyle = '#fff'; ctx.font = '800 32px Montserrat';
+                ctx.fillText('— ' + ed.speakerName, left, y);
+                y += 45;
+                if (ed.speakerTitle) {
+                    ctx.fillStyle = accent; ctx.font = '600 22px Inter';
+                    ctx.fillText(ed.speakerTitle, left, y);
+                }
+                ctx.restore();
+            }
+
+        } else if (template === 'interview') {
+            // RÖPORTAJ / SORU-CEVAP ŞABLONU (İç içe geçme önlendi, temiz akış)
+            let y = 240 + state.headlineTop;
+            if (ed.speakerName) {
+                ctx.save();
+                roundedRect(ctx, left, y, maxW, 55, 14);
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.2)'; ctx.fill();
+                ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)'; ctx.stroke();
+                
+                ctx.fillStyle = '#60a5fa'; ctx.font = '800 22px Montserrat'; ctx.textBaseline = 'middle';
+                ctx.fillText(`🎙 RÖPORTAJ | ${ed.speakerName.toUpperCase()} ${ed.speakerTitle ? '(' + ed.speakerTitle + ')' : ''}`, left + 25, y + 27.5);
+                y += 85;
+                ctx.restore();
+            }
+
+            if (currentSlide.showHeadline && currentSlide.headline) {
+                ctx.save();
+                ctx.fillStyle = '#93c5fd'; ctx.font = '900 20px Inter'; ctx.textBaseline = 'top';
+                ctx.fillText("SORU:", left, y);
+                ctx.restore();
+
+                const qFont = `700 ${Math.round(state.headlineSize * 0.75)}px Inter`;
+                const qLines = wrapHighlightedText(ctx, currentSlide.headline, maxW - 80, qFont, Math.round(state.headlineSize * 0.75));
+                drawWrappedHighlightedLines(ctx, qLines, left + 80, y, Math.round(state.headlineSize * 0.95), '#fff', accent, 6);
+                y += qLines.length * Math.round(state.headlineSize * 0.95) + state.gapSize + state.subtextTop;
+            } else {
+                y += state.subtextTop;
+            }
+
+            if (currentSlide.subtext) {
+                ctx.save();
+                ctx.fillStyle = '#34d399'; ctx.font = '900 20px Inter'; ctx.textBaseline = 'top';
+                ctx.fillText("CEVAP:", left, y);
+                ctx.restore();
+
+                const aFont = `600 ${state.subtextSize}px Inter`;
+                const aLines = wrapHighlightedText(ctx, currentSlide.subtext, maxW - 80, aFont, state.subtextSize);
+                drawWrappedHighlightedLines(ctx, aLines, left + 80, y, Math.round(state.subtextSize * 1.35), '#cbd5e1', '#10b981', 6);
+            }
+
+        } else if (template === 'stat') {
+            // VERİ / İSTATİSTİK ŞABLONU (Çok renkli, dinamik palet)
+            let y = 220 + state.headlineTop;
+            const statColor = ed.statColor || '#10b981';
+
+            if (ed.statNumber) {
+                ctx.save();
+                ctx.fillStyle = statColor; ctx.font = '900 130px Montserrat';
+                ctx.shadowColor = statColor; ctx.shadowBlur = 30;
+                ctx.fillText(ed.statNumber, left, y);
+                y += 140;
+                ctx.restore();
+            }
+
+            if (ed.statLabel) {
+                ctx.save();
+                ctx.fillStyle = '#fff'; ctx.font = '700 26px Montserrat';
+                ctx.fillText(ed.statLabel.toUpperCase(), left, y);
+                y += 50;
+                ctx.restore();
+            }
+
+            if (currentSlide.showHeadline && currentSlide.headline) {
+                const hFont = `900 ${Math.round(state.headlineSize * 0.85)}px Montserrat`;
+                const hLines = wrapHighlightedText(ctx, currentSlide.headline, maxW, hFont, Math.round(state.headlineSize * 0.85));
+                drawWrappedHighlightedLines(ctx, hLines, left, y, Math.round(state.headlineSize * 1.05), '#fff', statColor, 8);
+                y += hLines.length * Math.round(state.headlineSize * 1.05) + state.gapSize + state.subtextTop;
+            } else {
+                y += state.subtextTop;
+            }
+
+            if (currentSlide.subtext) {
+                const sFont = `500 ${state.subtextSize}px Inter`;
+                const sLines = wrapHighlightedText(ctx, currentSlide.subtext, maxW, sFont, state.subtextSize);
+                drawWrappedHighlightedLines(ctx, sLines, left, y, Math.round(state.subtextSize * 1.4), '#94a3b8', statColor, 4);
+            }
+
+        } else if (template === 'versus') {
+            // VERSUS / İKİ RENKLİ SPLIT EKRAN KARŞILAŞTIRMA (Ekranı ikiye bölen zarif tasarım)
+            let y = 240 + state.headlineTop;
+            if (currentSlide.showHeadline && currentSlide.headline) {
+                const hFont = `900 ${Math.round(state.headlineSize * 0.85)}px Montserrat`;
+                const hLines = wrapHighlightedText(ctx, currentSlide.headline, maxW, hFont, Math.round(state.headlineSize * 0.85));
+                drawWrappedHighlightedLines(ctx, hLines, left, y, Math.round(state.headlineSize * 1.1), '#fff', accent, 10);
+                y += hLines.length * Math.round(state.headlineSize * 1.1) + state.gapSize + state.subtextTop;
+            } else {
+                y += state.subtextTop;
+            }
+
+            // Sol ve Sağ Split Alanlar
+            let halfW = (w - 200) / 2;
+            let colAX = 100;
+            let colBX = w / 2 + 50;
+
+            // Sol Taraf (A)
+            ctx.save();
+            ctx.fillStyle = '#ffffff'; ctx.font = '800 32px Montserrat'; ctx.textBaseline = 'top';
+            ctx.fillText(ed.versusA || 'TARAF A', colAX, y);
+            
+            ctx.fillStyle = ed.versusColorA || '#3b82f6';
+            ctx.fillRect(colAX, y + 45, halfW, 4);
+
+            if (ed.versusDescA) {
+                const descAFont = `500 22px Inter`;
+                const descALines = wrapHighlightedText(ctx, ed.versusDescA, halfW, descAFont, 22);
+                drawWrappedHighlightedLines(ctx, descALines, colAX, y + 65, 34, '#e2e8f0', '#93c5fd', 4);
+            }
+            ctx.restore();
+
+            // Sağ Taraf (B)
+            ctx.save();
+            ctx.fillStyle = '#ffffff'; ctx.font = '800 32px Montserrat'; ctx.textBaseline = 'top';
+            ctx.fillText(ed.versusB || 'TARAF B', colBX, y);
+
+            ctx.fillStyle = ed.versusColorB || '#ef4444';
+            ctx.fillRect(colBX, y + 45, halfW, 4);
+
+            if (ed.versusDescB) {
+                const descBFont = `500 22px Inter`;
+                const descBLines = wrapHighlightedText(ctx, ed.versusDescB, halfW, descBFont, 22);
+                drawWrappedHighlightedLines(ctx, descBLines, colBX, y + 65, 34, '#e2e8f0', '#fca5a5', 4);
+            }
+            ctx.restore();
+
+        } else if (template === 'minimal') {
+            // MİNYATÜR GÖRSEL ODAKLI ŞABLON
+            let y = h - 420 + state.headlineTop;
+            if (currentSlide.showHeadline && currentSlide.headline) {
+                const hFont = `900 ${state.headlineSize}px Montserrat`;
+                const hLines = wrapHighlightedText(ctx, currentSlide.headline, maxW, hFont, state.headlineSize);
+                drawWrappedHighlightedLines(ctx, hLines, left, y, Math.round(state.headlineSize * 1.15), '#fff', accent, 12);
+                y += hLines.length * Math.round(state.headlineSize * 1.15) + state.gapSize + state.subtextTop;
+            } else {
+                y += state.subtextTop;
+            }
+            if (currentSlide.subtext) {
+                const sFont = `500 ${state.subtextSize}px Inter`;
+                const sLines = wrapHighlightedText(ctx, currentSlide.subtext, maxW, sFont, state.subtextSize);
+                drawWrappedHighlightedLines(ctx, sLines, left, y, Math.round(state.subtextSize * 1.4), '#cbd5e1', accent, 8);
+            }
+        } else {
+            // STANDART VEYA FLAŞ / SON DAKİKA ŞABLONU
+            let y = 260 + state.headlineTop;
+            if (currentSlide.showHeadline && currentSlide.headline) {
+                const hFont = `900 ${state.headlineSize}px Montserrat`;
+                const hLines = wrapHighlightedText(ctx, currentSlide.headline, maxW, hFont, state.headlineSize);
+                drawWrappedHighlightedLines(ctx, hLines, left, y, Math.round(state.headlineSize * 1.15), '#fff', accent, 10);
+                y += hLines.length * Math.round(state.headlineSize * 1.15) + state.gapSize + state.subtextTop;
+            } else {
+                y += state.subtextTop;
+            }
+
+            if (currentSlide.subtext) {
+                const sFont = `500 ${state.subtextSize}px Inter`;
+                const sLines = wrapHighlightedText(ctx, currentSlide.subtext, maxW, sFont, state.subtextSize);
+                drawWrappedHighlightedLines(ctx, sLines, left, y, Math.round(state.subtextSize * 1.4), '#cbd5e1', accent, 8);
+            }
+        }
+
+        // Alt Bilgi / Footer
+        const footerY = h - 48 - 30;
+        ctx.strokeStyle = 'rgba(255,255,255,.20)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(left, footerY - 18); ctx.lineTo(w - right, footerY - 18); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = '700 24px Montserrat'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(state.pageName || 'HABER MERKEZİ').toUpperCase(), left, footerY);
+
+        return canvas;
+    }
+
+    async function renderCanvas() {
+        const serial = ++renderSerial;
+        try {
+            if (document.fonts) await document.fonts.ready;
+            if (serial !== renderSerial) return;
+            await drawInstagramDesign(serial);
+        } catch(e) {
+            console.error('Canvas render hatası:', e);
+        }
+    }
+
+    // Input Dinamik Dinleyicileri
+    document.getElementById('inputHeadline').addEventListener('input', e => {
+        slidesData[state.slideIndex].headline = e.target.value;
+        renderCanvas();
+    });
+    document.getElementById('inputSubtext').addEventListener('input', e => {
+        slidesData[state.slideIndex].subtext = e.target.value;
+        renderCanvas();
+    });
+    document.getElementById('showHeadlineToggle').addEventListener('change', e => {
+        slidesData[state.slideIndex].showHeadline = e.target.checked;
+        document.getElementById('headlineWrapper').style.display = e.target.checked ? 'block' : 'none';
+        renderCanvas();
+    });
+    document.getElementById('inputLogoText').addEventListener('input', e => { state.logoText = e.target.value; renderCanvas(); });
+    document.getElementById('inputPageName').addEventListener('input', e => { state.pageName = e.target.value; renderCanvas(); });
+
+    document.getElementById('bgFileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const url = URL.createObjectURL(file);
+        slidesData[state.slideIndex].mediaUrl = url;
+        renderCanvas();
+    });
+
+    async function setCustomLogoFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
+        const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = dataUrl; });
+        if (!img) return;
+        customLogoImage = img;
+        document.getElementById('clearLogoBtn')?.classList.remove('hidden');
+        renderCanvas();
+    }
+    document.getElementById('logoFileInput').addEventListener('change', e => setCustomLogoFile(e.target.files?.[0]));
+
+    function clearLogo() {
+        customLogoImage = null;
+        document.getElementById('logoFileInput').value = '';
+        document.getElementById('clearLogoBtn').classList.add('hidden');
+        renderCanvas();
+    }
+
+    // Toplu ZIP İndirme (Aktif Slaytlar)
+    async function exportInstagramPost() {
+        const btn = document.getElementById('downloadBtn');
+        const original = btn ? btn.innerHTML : '💾 İndir';
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ ZİP HAZIRLANIYOR...'; }
+        
+        const originalSlide = state.slideIndex;
+        try {
+            const zip = new JSZip();
+            const activeSlides = slidesData.map((s, idx) => ({ ...s, originalIndex: idx })).filter(s => s.active);
+
+            for (let i = 0; i < activeSlides.length; i++) {
+                const s = activeSlides[i];
+                if (btn) btn.innerHTML = `⏳ SLAYT ${i+1}/${activeSlides.length}...`;
+                setSlide(s.originalIndex);
+                if (document.fonts) await document.fonts.ready;
+                const canvas = await drawInstagramDesign(renderSerial);
+                const blob = await new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('PNG oluşturulamadı.')), 'image/png'));
+                const ratioName = state.ratio === 'square' ? '1080x1080' : state.ratio === 'reels' ? '1080x1920' : '1080x1350';
+                zip.file(`Haber_${ratioName}_Slayt${i+1}_${s.template}.png`, blob);
+            }
+
+            if (btn) btn.innerHTML = '⏳ ZİP OLUŞTURULUYOR...';
+            const content = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(content), link = document.createElement('a');
+            link.href = url; link.download = `Haber_Karusel_Arsivi_${Date.now()}.zip`;
+            document.body.appendChild(link); link.click(); link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showModal("Başarılı", "✅ Aktif tüm slaytlar şablonlarıyla birlikte ZIP olarak indirildi!");
+        } catch(err) {
+            console.error(err);
+            showModal('Hata', err?.message || 'ZIP oluşturulamadı.');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
+            setSlide(originalSlide);
+        }
+    }
+
+    // Google Sheets Entegrasyonları
+    const VZ_API_URL = "https://script.google.com/macros/s/AKfycby4gggxazpl-EAPtYbac_i4aB6j4a7JZnF6Jh7B95aTbeFCcPpDSbYz-sm2wMORs9TGZQ/exec";
+    let vzAktifRow = null;
+
+    // --------------------------------------------------------------------------
+    // VERİ ZEKALI - SHEETS AKILLI SLAYT PARSER (v13.5)
+    // Tasarıma dokunmaz. Sadece Apps Script'ten gelen ham slayt metnini
+    // mevcut Canvas motorunun beklediği slidesData yapısına dönüştürür.
+    // --------------------------------------------------------------------------
+    function normalizeTemplateName(value) {
+        const raw = String(value || '').trim().toLowerCase();
+        const aliases = {
+            'standard': 'standard',
+            'standart': 'standard',
+            'breaking': 'breaking',
+            'son dakika': 'breaking',
+            'quote': 'quote',
+            'alıntı': 'quote',
+            'interview': 'interview',
+            'röportaj': 'interview',
+            'roportaj': 'interview',
+            'stat': 'stat',
+            'statistics': 'stat',
+            'istatistik': 'stat',
+            'versus': 'versus',
+            'vs': 'versus',
+            'karşılaştırma': 'versus',
+            'karsilastirma': 'versus',
+            'minimal': 'minimal'
+        };
+        return aliases[raw] || 'standard';
+    }
+
+    function escapeRegExp(value) {
+        return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function getTaggedValue(text, labels) {
+        if (!text) return '';
+        const source = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const escaped = labels.map(escapeRegExp).join('|');
+        const re = new RegExp(String.raw`(?:^|\n)\s*(?:${escaped})\s*:\s*([^\n]*)`, 'i');
+        const match = source.match(re);
+        return match ? match[1].trim() : '';
+    }
+
+    function getTaggedBlock(text, labels) {
+        if (!text) return '';
+        const source = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const escaped = labels.map(escapeRegExp).join('|');
+        const nextTag = '(?:SABLON|ŞABLON|BASLIK|BAŞLIK|METIN|METİN|ACIKLAMA|AÇIKLAMA|KISI|KİŞİ|KONUSMACI|KONUŞMACI|UNVAN|KURUM|SORU|CEVAP|RAKAM|STAT|ETIKET|ETİKET|RENK|TARAF_A|TARAF_B|DETAY_A|DETAY_B)';
+        const re = new RegExp(String.raw`(?:^|\n)\s*(?:${escaped})\s*:\s*([\s\S]*?)(?=\n\s*${nextTag}\s*:|$)`, 'i');
+        const match = source.match(re);
+        return match ? match[1].trim() : '';
+    }
+
+    function parseNewsSlide(rawText) {
+        const text = String(rawText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+        const extraData = {
+            speakerName: '',
+            speakerTitle: '',
+            statNumber: '',
+            statLabel: '',
+            statColor: '#10b981',
+            versusA: '',
+            versusB: '',
+            versusDescA: '',
+            versusDescB: '',
+            versusColorA: '#1e3a8a',
+            versusColorB: '#b91c1c'
+        };
+
+        if (!text) {
+            return { active: false, template: 'standard', headline: '', subtext: '', showHeadline: false, mediaUrl: '', extraData };
+        }
+
+        let template = normalizeTemplateName(getTaggedValue(text, ['SABLON', 'ŞABLON']));
+        const soru = getTaggedBlock(text, ['SORU']);
+        const cevap = getTaggedBlock(text, ['CEVAP']);
+
+        if (soru || cevap) template = 'interview';
+
+        let headline = getTaggedBlock(text, ['BASLIK', 'BAŞLIK']);
+        let subtext = getTaggedBlock(text, ['METIN', 'METİN', 'ACIKLAMA', 'AÇIKLAMA']);
+
+        // SORU/CEVAP varsa doğrudan mevcut Canvas motorunun
+        // headline/subtext alanlarına bağlanır.
+        if (soru) headline = soru;
+        if (cevap) subtext = cevap;
+
+        // Etiket bulunamazsa ham metni boş bırakmamak için eski davranışa
+        // yakın güvenli geri dönüş kullanılır. *vurgu* karakterleri korunur.
+        if (!headline && !subtext && text) {
+            const cleaned = text
+                .replace(/(?:^|\n)\s*(?:SABLON|ŞABLON|KISI|KİŞİ|KONUSMACI|KONUŞMACI|UNVAN|KURUM|RAKAM|STAT|ETIKET|ETİKET|RENK|TARAF_A|TARAF_B|DETAY_A|DETAY_B)\s*:[^\n]*/gi, '')
+                .trim();
+            subtext = cleaned || text;
+        }
+
+        extraData.speakerName = getTaggedValue(text, ['KISI', 'KİŞİ', 'KONUSMACI', 'KONUŞMACI']);
+        extraData.speakerTitle = getTaggedValue(text, ['UNVAN', 'KURUM']);
+        extraData.statNumber = getTaggedValue(text, ['RAKAM', 'STAT']);
+        extraData.statLabel = getTaggedValue(text, ['ETIKET', 'ETİKET']);
+        extraData.statColor = getTaggedValue(text, ['RENK']) || '#10b981';
+        extraData.versusA = getTaggedValue(text, ['TARAF_A']) || '';
+        extraData.versusB = getTaggedValue(text, ['TARAF_B']) || '';
+        extraData.versusDescA = getTaggedBlock(text, ['DETAY_A']) || '';
+        extraData.versusDescB = getTaggedBlock(text, ['DETAY_B']) || '';
+
+        return {
+            active: true,
+            template,
+            headline,
+            subtext,
+            showHeadline: !!headline,
+            mediaUrl: '',
+            extraData
+        };
+    }
+
+    function categoryToTheme(category) {
+        const c = String(category || '').trim().toLocaleLowerCase('tr-TR');
+        if (!c) return 'general';
+
+        if (/asayiş|asayis|kaza|güvenlik|guvenlik|suç|suc|polis|jandarma|yangın|yangin|cinayet|operasyon|olay/.test(c)) return 'breaking';
+        if (/teknoloji|teknolojik|bilim|yapay zeka|yapay zeka/.test(c)) return 'tech';
+        if (/spor|futbol|basketbol|voleybol|tenis/.test(c)) return 'sports';
+        if (/finans|ekonomi|borsa|piyasa|döviz|doviz|altın|altin/.test(c)) return 'finance';
+        if (/politika|siyaset|seçim|secim|meclis|hükümet|hukumet/.test(c)) return 'politics';
+        if (/kültür|kultur|sanat|magazin|yaşam|yasam|eğlence|eglence/.test(c)) return 'culture';
+        if (/dünya|dunya|uluslararası|uluslararasi/.test(c)) return 'world';
+        if (/sağlık|saglik|tıp|tip|hastane/.test(c)) return 'health';
+        return 'general';
+    }
+
+    function createEmptySlideFromTemplate() {
+        return {
+            active: true,
+            template: 'standard',
+            headline: '',
+            subtext: '',
+            showHeadline: true,
+            mediaUrl: '',
+            extraData: {
+                speakerName: '', speakerTitle: '',
+                statNumber: '', statLabel: '', statColor: '#10b981',
+                versusA: 'Eski Sistem', versusB: 'Yeni Sistem',
+                versusDescA: '', versusDescB: '',
+                versusColorA: '#1e3a8a', versusColorB: '#b91c1c'
+            }
+        };
+    }
+
+    // Apps Script'ten gelen tek bir haber kaydını mevcut Canvas motoruna bağlar.
+    // Tasarım/şablon motoruna dokunulmaz; yalnızca veri beslemesi hazırlanır.
+    function applyNewsDataToEditor(data) {
+        const rawSlides = [
+            data.slayt_1_metni,
+            data.slayt_2_metni,
+            data.slayt_3_metni,
+            data.slayt_4_metni
+        ].filter(v => String(v || '').trim() !== '');
+
+        if (!rawSlides.length) {
+            throw new Error('Haberde kullanılabilir slayt metni bulunamadı.');
+        }
+
+        const mediaUrl = data.gorsel_url || data.ham_gorsel_url || '';
+        slidesData = rawSlides.map(raw => {
+            const slide = parseNewsSlide(raw);
+            slide.mediaUrl = mediaUrl;
+            return slide;
+        });
+
+        state.category = String(data.kategori || 'GÜNCEL').trim().toLocaleUpperCase('tr-TR');
+        state.categoryTheme = categoryToTheme(data.kategori);
+        const theme = themeRenderMap[state.categoryTheme] || themeRenderMap.general;
+        state.badge = theme.badge;
+
+        renderCategoryButtons();
+        state.slideIndex = 0;
+        setSlide(0);
+        return slidesData.length;
+    }
+
+    async function tablodanHaberiCek() {
+      try {
+        const res = await fetch(VZ_API_URL + '?action=get_pending', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.status !== 'success') {
+          showModal('Bilgi', data.message || 'Tabloda bekleyen haber yok.');
+          return;
+        }
+
+        vzAktifRow = data.row;
+        window.aktifHaber = { id: data.id || data.row, row: data.row };
+        const slideCount = applyNewsDataToEditor(data);
+        showModal('Başarılı', `${slideCount} slayt Google Sheets'ten başarıyla yüklendi!`);
+      } catch (err) {
+        console.error('Google Sheets veri çekme hatası:', err);
+        showModal('Bağlantı Hatası', err.message || String(err));
+      }
+    }
+
+    // BEKLEYEN TÜM HABERLERİ TOPLU OLARAK OLUŞTURUP DRIVE'A GÖNDER
+    // Apps Script action=get_all_pending ile tüm "Görsel Bekleniyor" kayıtlarını alır.
+    // Her haber kendi row numarasıyla POST edilir; böylece Drive URL'leri doğru satıra yazılır.
+    async function topluBekleyenHaberleriGonder() {
+        const btn = document.getElementById('btnTopluGonder');
+        if (btn?.disabled) return;
+
+        const originalButtonHtml = btn ? btn.innerHTML : '⚡ Toplu Gönder';
+        const originalSlidesData = slidesData;
+        const originalState = { ...state };
+        const originalSlideIndex = state.slideIndex;
+
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Bekleyenler Alınıyor...';
+                btn.classList.add('opacity-70', 'cursor-not-allowed');
+            }
+
+            const res = await fetch(VZ_API_URL + '?action=get_all_pending', { cache: 'no-store' });
+            const data = await res.json();
+
+            if (data.status !== 'success' || !Array.isArray(data.items) || data.items.length === 0) {
+                showModal('Bilgi', data.message || 'Toplu işlem için bekleyen haber bulunamadı.');
+                return;
+            }
+
+            const items = data.items;
+            const approved = window.confirm(
+                `Toplam ${items.length} bekleyen haber bulundu.\n\n` +
+                `Her haberin aktif slaytları oluşturulacak ve ilgili Drive alanlarına gönderilecek.\n\n` +
+                `İşleme devam edilsin mi?`
+            );
+
+            if (!approved) return;
+
+            let successCount = 0;
+            let failedCount = 0;
+            const errors = [];
+
+            for (let n = 0; n < items.length; n++) {
+                const item = items[n];
+                try {
+                    if (btn) btn.innerHTML = `⏳ ${n + 1}/${items.length} • Haber hazırlanıyor...`;
+
+                    const slideCount = applyNewsDataToEditor(item);
+                    const images = [];
+
+                    const activeSlides = slidesData
+                        .map((slide, index) => ({ slide, index }))
+                        .filter(x => x.slide.active);
+
+                    if (!activeSlides.length) {
+                        throw new Error('Aktif slayt bulunamadı.');
+                    }
+
+                    for (let s = 0; s < activeSlides.length; s++) {
+                        const slideIndex = activeSlides[s].index;
+                        if (btn) btn.innerHTML = `🎨 ${n + 1}/${items.length} • Slayt ${s + 1}/${activeSlides.length}`;
+
+                        setSlide(slideIndex);
+                        await renderCanvas();
+
+                        const canvas = document.getElementById('instagramPostCanvas');
+                        if (!canvas) throw new Error('Canvas bulunamadı.');
+
+                        images.push(canvas.toDataURL('image/png').replace(/^data:image\/\w+;base64,/, ''));
+                    }
+
+                    if (btn) btn.innerHTML = `☁️ ${n + 1}/${items.length} • Drive'a yükleniyor...`;
+
+                    const uploadRes = await fetch(VZ_API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'upload_carousel_images',
+                            row: item.row,
+                            images: images
+                        })
+                    });
+
+                    const uploadResult = await uploadRes.json();
+                    if (uploadResult.status !== 'success') {
+                        throw new Error(uploadResult.message || 'Apps Script yükleme hatası.');
+                    }
+
+                    successCount++;
+                } catch (itemErr) {
+                    failedCount++;
+                    errors.push(`Satır ${item.row || '?'}: ${itemErr.message || itemErr}`);
+                    console.error('Toplu haber hatası:', item, itemErr);
+                }
+            }
+
+            let message = `✅ ${successCount} haber başarıyla oluşturuldu ve Drive'a gönderildi.`;
+            if (failedCount) {
+                message += `\n\n⚠️ ${failedCount} haber işlenemedi.`;
+                if (errors.length) message += `\n\n${errors.slice(0, 8).join('\n')}`;
+                if (errors.length > 8) message += `\n... ve ${errors.length - 8} hata daha.`;
+            }
+
+            showModal(failedCount ? 'Toplu İşlem Tamamlandı' : 'Toplu İşlem Başarılı', message);
+        } catch (err) {
+            console.error('Toplu haber işlemi hatası:', err);
+            showModal('Toplu İşlem Hatası', err.message || String(err));
+        } finally {
+            // Kullanıcının o anki editörünü geri yükle.
+            slidesData = originalSlidesData;
+            Object.assign(state, originalState);
+            renderCategoryButtons();
+            setSlide(Math.min(originalSlideIndex, slidesData.length - 1));
+
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalButtonHtml;
+                btn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        }
+    }
+
+    async function gorseliOnaylaVeSheetsGonder() {
+      if (!vzAktifRow && !window.aktifHaber) { showModal("Uyarı", "Önce 'Haberi Çek' ile veri yükleyin!"); return; }
+      const activeRow = vzAktifRow || window.aktifHaber.row;
+      const sendBtn = document.getElementById('btnOnaylaGonder');
+      const original = sendBtn ? sendBtn.innerText : "🚀 Gönder";
+      const originalSlide = state.slideIndex;
+      try {
+        if (sendBtn) sendBtn.innerText = "Görseller Hazırlanıyor...";
+        const images = [];
+        for (let i = 0; i < slidesData.length; i++) {
+            if (!slidesData[i].active) continue;
+            setSlide(i);
+            if (document.fonts) await document.fonts.ready;
+            const c = await drawInstagramDesign(renderSerial);
+            images.push(c.toDataURL("image/png").replace(/^data:image\/\w+;base64,/, ""));
+        }
+        if (sendBtn) sendBtn.innerText = "Drive'a Yükleniyor...";
+        const res = await fetch(VZ_API_URL, { method: "POST", body: JSON.stringify({ action: "upload_carousel_images", row: activeRow, images }) });
+        const result = await res.json();
+        if (result.status === "success") {
+            showModal("Başarılı", "✅ Karusel görselleri başarıyla Google Drive'a gönderildi!");
+            vzAktifRow = null; window.aktifHaber = null;
+        } else {
+            throw new Error(result.message || "Sunucu hatası");
+        }
+      } catch (err) {
+        showModal("Gönderme Hatası", err.message || err.toString());
+      } finally {
+        if (sendBtn) sendBtn.innerText = original;
+        setSlide(originalSlide);
+      }
+    }
+
+    // Başlangıç Kurulumu
+    loadSavedTypographyProfiles();
+    renderCategoryButtons();
+    initProfilesDropdown();
+    selectRatio(state.ratio);
+    setSlide(0);
+    </script>
+</body>
+</html>
